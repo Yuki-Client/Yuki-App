@@ -9,7 +9,7 @@ A native iPhone client for [Stoat](https://stoat.chat), written in SwiftUI for i
 ## What's in it
 
 - Messaging with markdown, mentions, custom and animated emoji, spoilers, code blocks and LaTeX, plus replies, edits, reactions, pins and search
-- Photos, videos and files, with compression to fit Stoat's upload limit, a photo cropper and voice messages
+- Photos, videos and files, with compression to fit Stoat's upload limit, a photo cropper and voice messages you can transcribe on your phone
 - Voice and video calls over LiveKit, shown on the system call screen through CallKit
 - Server folders and ordering, synced with Stoat for Web
 - A notification centre for mentions and DMs across every server
@@ -20,6 +20,10 @@ A native iPhone client for [Stoat](https://stoat.chat), written in SwiftUI for i
 
 - **No push notifications.** Stoat's push service only signs notifications for the official app, so Yuki can only notify you while it's running.
 - **No screen sharing.** You can watch other people's screen shares, but starting one needs a broadcast extension and a paid developer account.
+
+## Installing
+
+On your iPhone, tap [Add to AltStore](https://yukiapp.xyz/altstore) or [Add to SideStore](https://yukiapp.xyz/sidestore), then install Yuki from the source. You can also add `https://yukiapp.xyz/altstore.json` as a source by hand, or download `Yuki.ipa` from [Releases](https://github.com/Yuki-Client/Yuki-App/releases). New to sideloading? The [install guide](https://yukiapp.xyz/install) walks through it.
 
 ## Layout
 
