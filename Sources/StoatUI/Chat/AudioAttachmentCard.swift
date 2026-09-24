@@ -17,8 +17,22 @@ final class AudioPlaybackModel {
     @ObservationIgnored private var holdsAudio = false
     @ObservationIgnored private let url: URL?
 
+    private static var knownDurations: [URL: Double] = [:]
+
     init(url: URL?) {
         self.url = url
+        if let url, let known = Self.knownDurations[url] {
+            duration = known
+        }
+    }
+
+    func loadDuration() async {
+        guard duration == 0, let url else { return }
+        guard let time = try? await AVURLAsset(url: url).load(.duration) else { return }
+        let seconds = CMTimeGetSeconds(time)
+        guard seconds.isFinite, seconds > 0 else { return }
+        Self.knownDurations[url] = seconds
+        duration = seconds
     }
 
     func toggle() {
@@ -163,6 +177,7 @@ public struct AudioAttachmentCard: View {
                 .fill(YukiTheme.cardSurface)
         )
         .frame(maxWidth: 340)
+        .task { await model.loadDuration() }
         .onDisappear { model.stop() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Audio: \(attachment.filename)")
