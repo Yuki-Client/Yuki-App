@@ -52,7 +52,12 @@ public struct YukiMarkdownView: View {
             case "user":
                 linkHandler.openUser(id)
             case "channel":
-                linkHandler.openChannel(id)
+                let parts = url.pathComponents.filter { $0 != "/" }
+                if parts.count >= 2, let navigate = linkHandler.navigate {
+                    navigate(parts[0], parts[1])
+                } else {
+                    linkHandler.openChannel(parts.first ?? id)
+                }
             default:
                 break
             }
