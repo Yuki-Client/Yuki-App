@@ -119,13 +119,45 @@ final class AudioPlaybackModel {
 public struct AudioAttachmentCard: View {
     public let attachment: Attachment
     @State private var model: AudioPlaybackModel
+    @State private var transcript: Transcript
+    @State private var showsTranscript: Bool
+
+    private enum Transcript {
+        case none
+        case working
+        case text(String)
+        case failed(String)
+    }
 
     public init(attachment: Attachment) {
         self.attachment = attachment
         _model = State(initialValue: AudioPlaybackModel(url: attachment.originalURL()))
+        let known = VoiceTranscriber.cachedTranscript(for: attachment.id)
+        _transcript = State(initialValue: known.map(Transcript.text) ?? .none)
+        _showsTranscript = State(initialValue: known != nil)
     }
 
     public var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            player
+            if showsTranscript {
+                transcriptView
+                    .transition(.opacity)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(YukiTheme.cardSurface)
+        )
+        .frame(maxWidth: 340)
+        .task { await model.loadDuration() }
+        .onDisappear { model.stop() }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Audio: \(attachment.filename)")
+    }
+
+    private var player: some View {
         HStack(spacing: 12) {
             Button {
                 YukiHaptics.impact()
@@ -170,17 +202,73 @@ public struct AudioAttachmentCard: View {
                         .lineLimit(1)
                 }
             }
+
+            Button(action: toggleTranscript) {
+                Group {
+                    if case .working = transcript {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: showsTranscript ? "text.bubble.fill" : "text.bubble")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(YukiTheme.accent)
+                    }
+                }
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled({ if case .working = transcript { true } else { false } }())
+            .accessibilityLabel(showsTranscript ? "Hide Transcript" : "Transcribe")
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(YukiTheme.cardSurface)
-        )
-        .frame(maxWidth: 340)
-        .task { await model.loadDuration() }
-        .onDisappear { model.stop() }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Audio: \(attachment.filename)")
+    }
+
+    @ViewBuilder
+    private var transcriptView: some View {
+        switch transcript {
+        case .none:
+            EmptyView()
+        case .working:
+            Text("Transcribing…")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        case .text(let text):
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        case .failed(let message):
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func toggleTranscript() {
+        YukiHaptics.impact()
+        switch transcript {
+        case .text:
+            withAnimation(.easeInOut(duration: 0.2)) { showsTranscript.toggle() }
+        case .working:
+            break
+        case .none, .failed:
+            guard let url = attachment.originalURL() else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                transcript = .working
+                showsTranscript = true
+            }
+            Task {
+                let result: Transcript
+                do {
+                    result = .text(try await VoiceTranscriber.transcribe(id: attachment.id, url: url, filename: attachment.filename))
+                } catch {
+                    result = .failed((error as? VoiceTranscriber.Failure)?.errorDescription ?? "Couldn't transcribe this recording.")
+                }
+                withAnimation(.easeInOut(duration: 0.2)) { transcript = result }
+            }
+        }
     }
 
     private func barHeight(_ index: Int) -> CGFloat {

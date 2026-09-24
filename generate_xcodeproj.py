@@ -219,6 +219,7 @@ def main():
         "INFOPLIST_KEY_NSMicrophoneUsageDescription = \"Yuki uses your microphone for voice calls and voice messages.\";",
         "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = \"Yuki saves images you choose to your photo library.\";",
         "INFOPLIST_KEY_NSPhotoLibraryUsageDescription = \"Yuki lets you choose photos and videos to send.\";",
+        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = \"Yuki turns voice messages into text on your device when you ask it to.\";",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = \"UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight\";",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = \"UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight\";",
