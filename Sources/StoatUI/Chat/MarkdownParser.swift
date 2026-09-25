@@ -1,4 +1,5 @@
 import SwiftUI
+import StoatCore
 
 enum MarkdownParser {
     private static let userMentionRegex = try! NSRegularExpression(pattern: #"<@([0-9A-HJKMNP-TV-Z]{26})>"#)
@@ -53,7 +54,7 @@ enum MarkdownParser {
         if let cached = blockCache.object(forKey: text as NSString) {
             return cached.blocks
         }
-        let parsed = parseBlocks(removingImages(from: text))
+        let parsed = parseBlocks(removingImages(from: UnicodeEmoji.removingPackMarkers(text)))
         blockCache.setObject(BlockBox(parsed), forKey: text as NSString)
         return parsed
     }
@@ -323,7 +324,7 @@ enum MarkdownParser {
 
     /// True when the content is only custom or unicode emoji (up to 10), for jumbo rendering.
     static func isEmojiOnly(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = UnicodeEmoji.removingPackMarkers(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= 300 else { return false }
         let withoutCustom = trimmed.replacingOccurrences(of: #":[0-9A-HJKMNP-TV-Z]{26}:"#, with: "", options: .regularExpression)
         let customCount = (trimmed.count - withoutCustom.count) / 28

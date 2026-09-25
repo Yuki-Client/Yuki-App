@@ -61,7 +61,7 @@ struct ComposerQuery {
                 .map { .channel($0) }
         default:
             let custom = store.availableEmojis
-                .filter { $0.name.lowercased().contains(query) }
+                .filter { $0.name.lowercased().contains(query) && store.canUseEmoji($0.id, in: channel) }
                 .prefix(5)
                 .map { ComposerSuggestion.customEmoji($0) }
             let unicode = EmojiCatalog.search(query, limit: 6 - custom.count)
@@ -155,7 +155,7 @@ struct ComposerSuggestionList: View {
             ReactionEmojiView(emoji: emoji.id, size: 22).frame(width: 24)
             Text(":\(emoji.name):").font(.subheadline)
         case .unicodeEmoji(let emoji, let name):
-            Text(emoji).font(.title3).frame(width: 24)
+            ReactionEmojiView(emoji: emoji, size: 22).frame(width: 24)
             Text(":\(name):").font(.subheadline)
         }
     }

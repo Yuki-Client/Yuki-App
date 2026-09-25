@@ -107,10 +107,35 @@ public struct YukiMarkdownView: View {
             buffer = AttributedString()
         }
 
+        // iOS draws a regional indicator that isn't part of a flag as a dashed box.
+        func append(_ attributed: AttributedString) {
+            guard attributed.unicodeScalars.contains(where: UnicodeEmoji.isRegionalIndicator) else {
+                buffer.append(attributed)
+                return
+            }
+            var start = attributed.startIndex
+            var index = attributed.startIndex
+            while index < attributed.endIndex {
+                let next = attributed.characters.index(after: index)
+                let letters = UnicodeEmoji.loneRegionalIndicatorLetters(in: attributed.characters[index])
+                if !letters.isEmpty {
+                    buffer.append(attributed[start..<index])
+                    flush()
+                    for letter in letters {
+                        let tile = RegionalIndicatorTile.image(for: letter, pointSize: jumbo ? 44 : 20)
+                        result = Text("\(result)\(Image(uiImage: tile).renderingMode(.original))")
+                    }
+                    start = next
+                }
+                index = next
+            }
+            buffer.append(attributed[start..<attributed.endIndex])
+        }
+
         for piece in parsed {
             switch piece {
             case .styled(let attributed):
-                buffer.append(attributed)
+                append(attributed)
             case .token(let token, let attributes):
                 switch token {
                 case .user(let id):

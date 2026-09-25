@@ -143,7 +143,7 @@ public struct MessageComposerView: View {
             }
         }
         .sheet(isPresented: $showEmojiPicker) {
-            EmojiPickerSheet(sections: store.store.emojiSections(currentServerId: channel.server), title: "Emoji") { emoji in
+            EmojiPickerSheet(sections: store.store.emojiSections(for: channel), title: "Emoji") { emoji in
                 text += Emoji.isCustomEmojiId(emoji) ? ":\(emoji): " : emoji
             }
             .presentationDetents([.medium, .large])
@@ -275,12 +275,27 @@ public struct MessageComposerView: View {
         YukiHaptics.impact(.medium)
         if let editing = store.editingMessage {
             let content = text
-            text = ""
+            clearText(sent: content)
             Task { await store.editMessage(messageId: editing.id, content: content, in: channel.id) }
         } else {
             store.sendMessage(content: text, in: channel.id, attachments: attachments)
-            text = ""
+            clearText(sent: text)
             attachments = []
+        }
+    }
+
+    // Keyboards (autocorrect, dictation, marked IME text) can commit lingering text
+    // just after the field is cleared. Clear it if it was only part of the sent message.
+    private func clearText(sent: String) {
+        text = ""
+        guard !sent.isEmpty else { return }
+        Task { @MainActor in
+            for delay in [0, 150] {
+                try? await Task.sleep(for: .milliseconds(delay))
+                if !text.isEmpty, sent.hasSuffix(text) {
+                    text = ""
+                }
+            }
         }
     }
 
@@ -292,7 +307,7 @@ public struct MessageComposerView: View {
                         withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8)) {
                             attachments.removeAll { $0.id == attachment.id }
                         }
-                    }, removeLabel: "Remove \(attachment.filename)") {
+                    }, removeLabel: "Remove \(attachment.filename)", isSpoiler: attachment.isSpoiler) {
                         if attachment.kind == .image {
                             Button {
                                 editingAttachment = attachment
@@ -305,6 +320,20 @@ public struct MessageComposerView: View {
                         } else {
                             AttachmentThumbnail(attachment: attachment)
                         }
+                    }
+                    .contextMenu {
+                        Button {
+                            toggleSpoiler(attachment)
+                        } label: {
+                            if attachment.isSpoiler {
+                                Label("Remove Spoiler", systemImage: "eye")
+                            } else {
+                                Label("Mark as Spoiler", systemImage: "eye.slash")
+                            }
+                        }
+                    }
+                    .accessibilityAction(named: attachment.isSpoiler ? "Remove Spoiler" : "Mark as Spoiler") {
+                        toggleSpoiler(attachment)
                     }
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
@@ -322,13 +351,31 @@ public struct MessageComposerView: View {
 
     private func replace(_ original: OutgoingAttachment, with edited: OutgoingAttachment) {
         guard let index = attachments.firstIndex(where: { $0.id == original.id }) else { return }
-        attachments[index] = edited
+        attachments[index] = edited.markedAsSpoiler(original.isSpoiler)
         YukiHaptics.notification(.success)
     }
 
-    private func trayTile<Content: View>(onRemove: @escaping () -> Void, removeLabel: String, @ViewBuilder content: () -> Content) -> some View {
+    private func toggleSpoiler(_ attachment: OutgoingAttachment) {
+        guard let index = attachments.firstIndex(where: { $0.id == attachment.id }) else { return }
+        attachments[index] = attachment.markedAsSpoiler(!attachment.isSpoiler)
+        YukiHaptics.selection()
+    }
+
+    private func trayTile<Content: View>(onRemove: @escaping () -> Void, removeLabel: String, isSpoiler: Bool = false, @ViewBuilder content: () -> Content) -> some View {
         ZStack(alignment: .topTrailing) {
             content()
+                .blur(radius: isSpoiler ? 8 : 0)
+                .overlay {
+                    if isSpoiler {
+                        Image(systemName: "eye.slash.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(6)
+                            .background(Circle().fill(.black.opacity(0.55)))
+                            .allowsHitTesting(false)
+                            .accessibilityLabel("Spoiler")
+                    }
+                }
                 .frame(width: 76, height: 76)
                 .background(YukiTheme.cardSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -473,7 +520,7 @@ public struct MessageComposerView: View {
         let attachment = OutgoingAttachment(data: result.data, filename: "Voice Message.m4a", contentType: "audio/mp4", kind: .audio, duration: result.duration)
         if sendNow {
             store.sendMessage(content: text, in: channel.id, attachments: attachments + [attachment])
-            text = ""
+            clearText(sent: text)
             attachments = []
         } else {
             add(attachment)

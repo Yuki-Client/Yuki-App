@@ -89,6 +89,39 @@ final class StoreTests: XCTestCase {
         XCTAssertFalse(store.hasPermission(.sendMessage, in: channel))
     }
 
+    func testExternalEmojisNeedPermissionInServerChannels() {
+        let local = "01H0000000000000000000000A"
+        let external = "01H0000000000000000000000B"
+        let store = serverStore(defaultPermissions: Permission.default.rawValue, roles: [:], memberRoles: [])
+        store.servers["other"] = Server(id: "other", owner: "owner", name: "Other", channels: [], roles: [:], defaultPermissions: 0)
+        store.emojis[local] = Emoji(id: local, parent: .server(id: "s"), name: "local")
+        store.emojis[external] = Emoji(id: external, parent: .server(id: "other"), name: "external")
+        let channel = Channel(id: "c", channelType: .textChannel, server: "s", name: "general")
+        store.channels["c"] = channel
+
+        XCTAssertTrue(store.canUseEmoji(local, in: channel))
+        XCTAssertFalse(store.canUseEmoji(external, in: channel))
+        XCTAssertTrue(store.canUseEmoji("🎉", in: channel))
+        XCTAssertEqual(store.emojiSections(for: channel).map(\.id), ["s"])
+
+        store.servers["s"]?.defaultPermissions = Permission.default.union(.useExternalEmojis).rawValue
+        XCTAssertTrue(store.canUseEmoji(external, in: channel))
+        XCTAssertEqual(Set(store.emojiSections(for: channel).map(\.id)), ["s", "other"])
+
+        let dm = Channel(id: "dm", channelType: .directMessage)
+        XCTAssertTrue(store.canUseEmoji(external, in: dm))
+    }
+
+    func testSpoilerMarkingRenamesAttachment() {
+        let attachment = OutgoingAttachment(data: Data(), filename: "cat.jpg", contentType: "image/jpeg", kind: .image)
+        let spoiler = attachment.markedAsSpoiler(true)
+        XCTAssertEqual(spoiler.filename, "SPOILER_cat.jpg")
+        XCTAssertEqual(spoiler.id, attachment.id)
+        XCTAssertTrue(spoiler.isSpoiler)
+        XCTAssertEqual(spoiler.markedAsSpoiler(true).filename, "SPOILER_cat.jpg")
+        XCTAssertEqual(spoiler.markedAsSpoiler(false).filename, "cat.jpg")
+    }
+
     func testCanModerateRespectsRanking() {
         let roles = ["admin": Role(name: "Admin", rank: 1), "member": Role(name: "Member", rank: 5)]
         let store = serverStore(defaultPermissions: 0, roles: roles, memberRoles: ["admin"])

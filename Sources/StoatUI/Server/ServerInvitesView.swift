@@ -26,6 +26,11 @@ struct ServerInvitesView: View {
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    if let limits = limitsLabel(invite) {
+                        Text(limits)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .swipeActions {
                     Button("Revoke", role: .destructive) {
@@ -48,9 +53,24 @@ struct ServerInvitesView: View {
         .overlay { if isLoading { ProgressView() } }
         .navigationTitle("Invites")
         .task {
+            // Expired invites are only cleared out hourly, so they can still be listed.
             invites = await store.fetchServerInvites(serverId: serverId)
+                .filter { ($0.expiryDate ?? .distantFuture) > Date() }
             store.queueUserFetch(invites.map(\.creator))
             isLoading = false
         }
+    }
+
+    private func limitsLabel(_ invite: Invite) -> String? {
+        var parts: [String] = []
+        if let maxUses = invite.maxUses {
+            parts.append("\(invite.uses ?? 0)/\(maxUses) uses")
+        } else if let uses = invite.uses, uses > 0 {
+            parts.append(uses == 1 ? "1 use" : "\(uses) uses")
+        }
+        if let expiry = invite.expiryDate {
+            parts.append("expires \(expiry.formatted(.relative(presentation: .named)))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " • ")
     }
 }

@@ -418,4 +418,43 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(StoatAPIError.server(statusCode: 400, type: "ShortPassword").errorDescription, "That password is too short.")
         XCTAssertNotNil(StoatAPIError.server(statusCode: 400, type: "SomethingNew").errorDescription)
     }
+
+    func testDecodeInviteLimits() throws {
+        let invite = try decode(Invite.self, """
+        {"type": "Server", "_id": "abcd1234", "server": "s", "creator": "u", "channel": "c",
+         "max_uses": 10, "uses": 3, "expires": "2026-10-01T12:00:00.000Z"}
+        """)
+        XCTAssertEqual(invite.maxUses, 10)
+        XCTAssertEqual(invite.uses, 3)
+        XCTAssertEqual(invite.expiryDate, StoatDate.parse("2026-10-01T12:00:00Z"))
+
+        let older = try decode(Invite.self, #"{"type":"Server","_id":"x","server":"s","creator":"u","channel":"c"}"#)
+        XCTAssertNil(older.maxUses)
+        XCTAssertNil(older.expiryDate)
+    }
+
+    func testCreateInvitePayloadLeavesOutUnsetLimits() throws {
+        let empty = try JSONEncoder().encode(DeltaAPIClient.CreateInvitePayload())
+        XCTAssertEqual(String(decoding: empty, as: UTF8.self), "{}")
+
+        let limited = try JSONEncoder().encode(DeltaAPIClient.CreateInvitePayload(maxUses: 5))
+        XCTAssertEqual(String(decoding: limited, as: UTF8.self), #"{"max_uses":5}"#)
+    }
+
+    func testPackMarkersAreDroppedBeforeEmoji() {
+        XCTAssertEqual(UnicodeEmoji.removingPackMarkers("\u{E0E3}😀 hi"), "😀 hi")
+        XCTAssertEqual(UnicodeEmoji.removingPackMarkers("\u{E0E6}🇪"), "🇪")
+        // Only markers in front of an emoji are the web client's.
+        XCTAssertEqual(UnicodeEmoji.removingPackMarkers("\u{E0E3}a"), "\u{E0E3}a")
+    }
+
+    func testLoneRegionalIndicatorsBecomeLetters() {
+        XCTAssertEqual(UnicodeEmoji.splittingLoneRegionalIndicators("🇪"), [.letter("E")])
+        XCTAssertEqual(UnicodeEmoji.splittingLoneRegionalIndicators("hi 🇳🇿!"), [.text("hi 🇳🇿!")])
+        XCTAssertEqual(
+            UnicodeEmoji.splittingLoneRegionalIndicators("🇭🇪 🇾"),
+            [.letter("H"), .letter("E"), .text(" "), .letter("Y")]
+        )
+        XCTAssertEqual(UnicodeEmoji.splittingLoneRegionalIndicators("plain"), [.text("plain")])
+    }
 }

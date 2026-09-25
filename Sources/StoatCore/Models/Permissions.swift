@@ -46,6 +46,7 @@ public struct Permission: OptionSet, Sendable, Hashable {
     public static let mentionRoles = Permission(rawValue: 1 << 38)
     public static let bypassSlowmode = Permission(rawValue: 1 << 39)
     public static let viewAuditLogs = Permission(rawValue: 1 << 40)
+    public static let useExternalEmojis = Permission(rawValue: 1 << 41)
 
     public static let grantAllSafe = Permission(rawValue: 0x000F_FFFF_FFFF_FFFF)
 

@@ -377,8 +377,24 @@ public actor DeltaAPIClient {
         try await request(.get, "sync/unreads")
     }
 
-    public func createInvite(channelId: String) async throws -> Invite {
-        try await request(.post, "channels/\(channelId)/invites")
+    public struct CreateInvitePayload: Encodable, Sendable {
+        public let maxUses: Int?
+        public let expires: String?
+
+        public init(maxUses: Int? = nil, expires: Date? = nil) {
+            self.maxUses = maxUses
+            self.expires = expires.map(StoatDate.string(from:))
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case maxUses = "max_uses"
+            case expires
+        }
+    }
+
+    /// The body is required, even when empty.
+    public func createInvite(channelId: String, payload: CreateInvitePayload = CreateInvitePayload()) async throws -> Invite {
+        try await request(.post, "channels/\(channelId)/invites", body: payload)
     }
 
     // MARK: - Messages

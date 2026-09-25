@@ -13,7 +13,7 @@ public struct ChannelListView: View {
     @State private var showCategoryEditor = false
     @State private var showServerSettings = false
     @State private var detailsChannelId: String?
-    @State private var inviteLink: String?
+    @State private var inviteChannelId: String?
     @State private var closeTarget: Channel?
     @Environment(VoiceCallController.self) private var voice
     @State private var serverChangedAt = Date.distantPast
@@ -105,9 +105,9 @@ public struct ChannelListView: View {
         .sheet(item: Binding(get: { detailsChannelId.map(IdentifiedString.init) }, set: { detailsChannelId = $0?.value })) { item in
             ChannelDetailsSheet(store: store, channelId: item.value)
         }
-        .sheet(item: Binding(get: { inviteLink.map(IdentifiedString.init) }, set: { inviteLink = $0?.value })) { item in
-            InviteShareSheet(link: item.value)
-                .presentationDetents([.height(260)])
+        .sheet(item: Binding(get: { inviteChannelId.map(IdentifiedString.init) }, set: { inviteChannelId = $0?.value })) { item in
+            InviteShareSheet(store: store, channelId: item.value)
+                .presentationDetents([.height(360)])
         }
         .alert(
             closeTarget?.channelType == .group ? "Leave group?" : "Close conversation?",
@@ -176,7 +176,7 @@ public struct ChannelListView: View {
                 Menu {
                     if permissions.contains(.inviteOthers) {
                         Button {
-                            Task { await createInvite(server) }
+                            createInvite(server)
                         } label: {
                             Label("Invite People", systemImage: "person.badge.plus")
                         }
@@ -232,7 +232,7 @@ public struct ChannelListView: View {
                 quickSwitcherButton(onBanner: server.banner != nil)
                 if permissions.contains(.inviteOthers) {
                     Button {
-                        Task { await createInvite(server) }
+                        createInvite(server)
                     } label: {
                         Image(systemName: "person.badge.plus")
                             .font(.system(size: 16, weight: .semibold))
@@ -262,14 +262,14 @@ public struct ChannelListView: View {
         .keyboardShortcut("k", modifiers: .command)
     }
 
-    private func createInvite(_ server: Server) async {
+    private func createInvite(_ server: Server) {
         let channel = store.selectedChannelId.flatMap { store.store.channels[$0] }.flatMap { $0.server == server.id ? $0 : nil }
             ?? store.store.channels(forServer: server.id).first { store.store.hasPermission(.inviteOthers, in: $0) }
         guard let channel else {
             store.showError("There's no channel you can create an invite for.")
             return
         }
-        inviteLink = await store.createInvite(channelId: channel.id)
+        inviteChannelId = channel.id
     }
 
     @ViewBuilder
@@ -417,7 +417,7 @@ public struct ChannelListView: View {
         }
         if store.store.hasPermission(.inviteOthers, in: channel), channel.server != nil {
             Button {
-                Task { inviteLink = await store.createInvite(channelId: channel.id) }
+                inviteChannelId = channel.id
             } label: {
                 Label("Invite People", systemImage: "person.badge.plus")
             }

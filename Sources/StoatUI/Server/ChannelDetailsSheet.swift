@@ -14,7 +14,7 @@ public struct ChannelDetailsSheet: View {
     @State private var isSaving = false
     @State private var showDeleteConfirm = false
     @State private var showMembers = false
-    @State private var inviteLink: String?
+    @State private var inviteChannelId: String?
     @State private var hasLoaded = false
     @State private var slowmode = 0
     @State private var iconItem: PhotosPickerItem?
@@ -126,7 +126,7 @@ public struct ChannelDetailsSheet: View {
                         }
                         if permissions.contains(.inviteOthers), channel.channelType == .textChannel || channel.channelType == .group {
                             Button {
-                                Task { inviteLink = await store.createInvite(channelId: channelId) }
+                                inviteChannelId = channelId
                             } label: {
                                 Label("Create Invite", systemImage: "person.badge.plus")
                             }
@@ -238,9 +238,9 @@ public struct ChannelDetailsSheet: View {
                     MemberListSheet(store: store, channel: channel)
                 }
             }
-            .sheet(item: Binding(get: { inviteLink.map(IdentifiedString.init) }, set: { inviteLink = $0?.value })) { item in
-                InviteShareSheet(link: item.value)
-                    .presentationDetents([.height(260)])
+            .sheet(item: Binding(get: { inviteChannelId.map(IdentifiedString.init) }, set: { inviteChannelId = $0?.value })) { item in
+                InviteShareSheet(store: store, channelId: item.value)
+                    .presentationDetents([.height(360)])
             }
         }
     }

@@ -39,7 +39,16 @@ enum EmojiCatalog {
                 }
             }
             return Group(id: block.title, symbol: block.symbol, entries: entries)
+        } + [letters]
+    }()
+
+    /// Regional indicator letters, which Stoat for Web lists so people can spell things out.
+    private static let letters: Group = {
+        let entries = (0x1F1E6...0x1F1FF).compactMap { value -> Entry? in
+            guard let scalar = Unicode.Scalar(UInt32(value)), let letter = UnicodeEmoji.letter(of: scalar) else { return nil }
+            return Entry(emoji: String(scalar), name: "regional_indicator_\(letter.lowercased())")
         }
+        return Group(id: "Letters", symbol: "textformat.abc", entries: entries)
     }()
 
     static let all: [Entry] = groups.flatMap(\.entries)
@@ -72,8 +81,12 @@ public struct EmojiPickerSheet: View {
         sections.flatMap(\.emojis)
     }
 
+    /// Custom emoji only show up when they're in one of the sections, which leaves out servers
+    /// the channel won't accept emoji from.
     private var recents: [String] {
-        recentStorage.split(separator: " ").map(String.init)
+        let usable = Set(customEmojis.map(\.id))
+        return recentStorage.split(separator: " ").map(String.init)
+            .filter { !Emoji.isCustomEmojiId($0) || usable.contains($0) }
     }
 
     private let columns = [GridItem(.adaptive(minimum: 42), spacing: 6)]
@@ -211,7 +224,7 @@ public struct EmojiPickerSheet: View {
 
     private func select(_ item: String) {
         YukiHaptics.selection()
-        var updated = recents.filter { $0 != item }
+        var updated = recentStorage.split(separator: " ").map(String.init).filter { $0 != item }
         updated.insert(item, at: 0)
         recentStorage = updated.prefix(24).joined(separator: " ")
         onSelectEmoji(item)

@@ -203,6 +203,17 @@ public final class NormalizedStore {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    /// Stoat only blocks other servers' emoji in server channels, and only without Use External Emojis.
+    public func canUseExternalEmojis(in channel: Channel?) -> Bool {
+        guard let channel, channel.server != nil else { return true }
+        return hasPermission(.useExternalEmojis, in: channel)
+    }
+
+    public func canUseEmoji(_ emoji: String, in channel: Channel?) -> Bool {
+        guard Emoji.isCustomEmojiId(emoji), let serverId = channel?.server else { return true }
+        return emojis[emoji]?.parent.serverId == serverId || canUseExternalEmojis(in: channel)
+    }
+
     public var availableEmojis: [Emoji] {
         emojis.values.filter { emoji in
             guard let serverId = emoji.parent.serverId else { return false }
@@ -219,11 +230,16 @@ public final class NormalizedStore {
     }
 
     /// Custom emoji grouped by server, with the current server first, then the sidebar order.
-    public func emojiSections(currentServerId: String?) -> [EmojiServerSection] {
+    /// Emoji usable in `channel`, with its own server's first.
+    public func emojiSections(for channel: Channel?) -> [EmojiServerSection] {
+        let currentServerId = channel?.server
         let grouped = Dictionary(grouping: availableEmojis) { $0.parent.serverId ?? "" }
         var ordered = orderedServers
         if let currentServerId, let index = ordered.firstIndex(where: { $0.id == currentServerId }) {
             ordered.insert(ordered.remove(at: index), at: 0)
+        }
+        if !canUseExternalEmojis(in: channel) {
+            ordered = ordered.filter { $0.id == currentServerId }
         }
         return ordered.compactMap { server in
             guard let list = grouped[server.id], !list.isEmpty else { return nil }

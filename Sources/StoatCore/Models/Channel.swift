@@ -277,11 +277,20 @@ public struct Invite: Decodable, Identifiable, Sendable, Hashable {
     public let server: String?
     public let creator: String
     public let channel: String
+    public let maxUses: Int?
+    public let uses: Int?
+    public let expires: String?
 
     enum CodingKeys: String, CodingKey {
         case type
         case code = "_id"
         case server, creator, channel
+        case maxUses = "max_uses"
+        case uses, expires
+    }
+
+    public var expiryDate: Date? {
+        expires.flatMap(StoatDate.parse)
     }
 }
 

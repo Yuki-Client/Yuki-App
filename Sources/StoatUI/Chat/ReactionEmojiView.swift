@@ -14,7 +14,18 @@ struct ReactionEmojiView: View {
             }
             .frame(width: size, height: size)
         } else {
-            Text(emoji).font(.system(size: size * 0.9))
+            let emoji = UnicodeEmoji.removingPackMarkers(emoji)
+            let letters = (emoji.count == 1 && emoji.first != nil) ? UnicodeEmoji.loneRegionalIndicatorLetters(in: emoji.first!) : []
+            if !letters.isEmpty {
+                HStack(spacing: 1) {
+                    ForEach(Array(letters.enumerated()), id: \.offset) { _, letter in
+                        Image(uiImage: RegionalIndicatorTile.image(for: letter, pointSize: size))
+                    }
+                }
+                .accessibilityLabel(String(letters))
+            } else {
+                Text(emoji).font(.system(size: size * 0.9))
+            }
         }
     }
 }

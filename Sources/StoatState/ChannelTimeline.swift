@@ -68,6 +68,28 @@ public struct OutgoingAttachment: Identifiable, Sendable, Hashable {
 
     public var isImage: Bool { kind == .image }
 
+    /// Stoat has no spoiler flag on files; clients blur any whose name starts with `SPOILER_`.
+    public var isSpoiler: Bool {
+        filename.lowercased().hasPrefix(Self.spoilerPrefix.lowercased())
+    }
+
+    private static let spoilerPrefix = "SPOILER_"
+
+    public func markedAsSpoiler(_ spoiler: Bool) -> OutgoingAttachment {
+        guard spoiler != isSpoiler else { return self }
+        let name = spoiler ? Self.spoilerPrefix + filename : String(filename.dropFirst(Self.spoilerPrefix.count))
+        return OutgoingAttachment(
+            id: id,
+            data: data,
+            filename: name,
+            contentType: contentType,
+            kind: kind,
+            preview: preview,
+            pixelSize: pixelSize,
+            duration: duration
+        )
+    }
+
     public init(
         id: UUID = UUID(),
         data: Data,

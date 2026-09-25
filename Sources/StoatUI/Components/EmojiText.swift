@@ -24,16 +24,17 @@ struct EmojiText: View {
     }
 
     private func rendered(at time: TimeInterval?) -> Text {
+        let text = UnicodeEmoji.removingPackMarkers(text)
         let range = NSRange(text.startIndex..., in: text)
         let matches = Self.pattern.matches(in: text, range: range)
-        guard !matches.isEmpty else { return Text(verbatim: text) }
+        guard !matches.isEmpty else { return RegionalIndicatorTile.text(text, pointSize: emojiSize) }
 
         var result = Text("")
         var cursor = text.startIndex
         for match in matches {
             guard let whole = Range(match.range, in: text), let idRange = Range(match.range(at: 1), in: text) else { continue }
             if cursor < whole.lowerBound {
-                result = Text("\(result)\(Text(verbatim: String(text[cursor..<whole.lowerBound])))")
+                result = Text("\(result)\(RegionalIndicatorTile.text(String(text[cursor..<whole.lowerBound]), pointSize: emojiSize))")
             }
             let id = String(text[idRange])
             if let image = emojiCache.image(for: id, pointSize: emojiSize, at: time) {
@@ -47,7 +48,7 @@ struct EmojiText: View {
             cursor = whole.upperBound
         }
         if cursor < text.endIndex {
-            result = Text("\(result)\(Text(verbatim: String(text[cursor...])))")
+            result = Text("\(result)\(RegionalIndicatorTile.text(String(text[cursor...]), pointSize: emojiSize))")
         }
         return result
     }

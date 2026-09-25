@@ -17,7 +17,9 @@ struct MessageActionsSheet: View {
 
     private var quickReactions: [String] {
         ReactionHistory().quickReactions { emoji in
-            !Emoji.isCustomEmojiId(emoji) || appStore.store.emojis[emoji] != nil
+            guard Emoji.isCustomEmojiId(emoji) else { return true }
+            guard let parent = appStore.store.emojis[emoji]?.parent.serverId else { return false }
+            return serverId == nil || parent == serverId || permissions.contains(.useExternalEmojis)
         }
     }
 

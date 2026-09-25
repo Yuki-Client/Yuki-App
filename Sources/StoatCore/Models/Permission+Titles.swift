@@ -27,6 +27,7 @@ extension Permission {
         (.uploadFiles, "Upload Files"),
         (.masquerade, "Masquerade"),
         (.react, "React"),
+        (.useExternalEmojis, "Use External Emojis"),
         (.bypassSlowmode, "Bypass Slowmode"),
         (.connect, "Connect"),
         (.speak, "Speak"),

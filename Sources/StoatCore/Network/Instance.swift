@@ -94,12 +94,14 @@ public struct GlobalLimits: Codable, Sendable {
     public let messageReplies: Int?
     public let messageReactions: Int?
     public let bodyLimitSize: Int?
+    public let maxInviteDurationDays: Int?
 
     enum CodingKeys: String, CodingKey {
         case groupSize = "group_size"
         case messageReplies = "message_replies"
         case messageReactions = "message_reactions"
         case bodyLimitSize = "body_limit_size"
+        case maxInviteDurationDays = "max_invite_duration_days"
     }
 }
 

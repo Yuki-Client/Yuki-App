@@ -113,7 +113,7 @@ public struct ChatFeedView: View {
             .presentationBackground(YukiTheme.groupedBackground)
         }
         .sheet(item: $reactionTarget) { message in
-            EmojiPickerSheet(sections: store.store.emojiSections(currentServerId: channel?.server), title: "Add Reaction") { emoji in
+            EmojiPickerSheet(sections: store.store.emojiSections(for: channel), title: "Add Reaction") { emoji in
                 react(with: emoji, to: message)
             }
             .presentationDetents([.medium, .large])

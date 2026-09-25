@@ -279,14 +279,22 @@ extension AppStore {
 
     // MARK: - Invites
 
-    public func createInvite(channelId: String) async -> String? {
+    public func createInvite(channelId: String, maxUses: Int? = nil, expiresAfter: TimeInterval? = nil) async -> Invite? {
         do {
-            let invite = try await apiClient.createInvite(channelId: channelId)
-            return "\(StoatInstance.appURL)/invite/\(invite.code)"
+            let payload = DeltaAPIClient.CreateInvitePayload(
+                maxUses: maxUses,
+                expires: expiresAfter.map { Date().addingTimeInterval($0) }
+            )
+            return try await apiClient.createInvite(channelId: channelId, payload: payload)
         } catch {
             showError(error)
             return nil
         }
+    }
+
+    /// How long an invite can last on this instance, if it sets a limit.
+    public var maxInviteDuration: TimeInterval? {
+        instanceConfiguration?.features.limits?.global?.maxInviteDurationDays.map { TimeInterval($0) * 86_400 }
     }
 
     public func fetchServerInvites(serverId: String) async -> [Invite] {

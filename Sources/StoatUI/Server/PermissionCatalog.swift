@@ -73,6 +73,7 @@ enum PermissionCatalog {
             PermissionEntry(.uploadFiles, any: "Send attachments"),
             PermissionEntry(.masquerade, any: "Change name and avatar on individual messages"),
             PermissionEntry(.react, any: "React to messages with emoji"),
+            PermissionEntry(.useExternalEmojis, server: "Use custom emoji from other servers", channel: "Use custom emoji from other servers"),
             PermissionEntry(.bypassSlowmode, server: "Ignore slowmode in channels", channel: "Ignore slowmode in this channel")
         ]),
         PermissionGroup(title: "Voice", entries: [

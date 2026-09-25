@@ -12,7 +12,7 @@ public enum MentionFormatter {
 
     /// - Parameter keepingEmoji: leaves custom emoji as `:ID:` for views that draw them (see `EmojiText`).
     public static func plainText(_ content: String, store: NormalizedStore, serverId: String? = nil, keepingEmoji: Bool = false) -> String {
-        var result = content
+        var result = UnicodeEmoji.removingPackMarkers(content)
         result = replace(userMention, in: result) { id in
             "@" + store.displayName(userId: id, serverId: serverId)
         }
