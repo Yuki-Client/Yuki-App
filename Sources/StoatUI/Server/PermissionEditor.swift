@@ -15,9 +15,14 @@ struct PermissionSections: View {
     let grantable: Permission
     var isEditable = true
 
+    @Environment(AppStore.self) private var appStore
+
     var body: some View {
         ForEach(PermissionCatalog.groups) { group in
-            let entries = group.entries.filter { $0.description(for: context) != nil }
+            let entries = group.entries.filter { entry in
+                entry.description(for: context) != nil
+                    && (entry.permission != .useExternalEmojis || appStore.store.checksExternalEmojis)
+            }
             if !entries.isEmpty {
                 Section(group.title) {
                     ForEach(entries) { entry in

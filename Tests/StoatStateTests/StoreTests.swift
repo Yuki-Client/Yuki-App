@@ -41,6 +41,16 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(timeline.hasMoreBefore)
     }
 
+    func testRefetchDropsMessagesDeletedWhileAway() {
+        let timeline = ChannelTimeline(channelId: "c")
+        timeline.merge(["010", "011", "012", "013", "014"].map { message($0) })
+        let known = Set(timeline.messages.map(\.id))
+        // 014 was the newest and got deleted, as did 012. 015 arrived over the socket mid-fetch.
+        timeline.upsert(message("015"))
+        timeline.merge(["011", "013"].map { message($0) }, known: known, from: "011", through: nil)
+        XCTAssertEqual(timeline.messages.map(\.id), ["010", "011", "013", "015"])
+    }
+
     // MARK: Permissions
 
     private func serverStore(defaultPermissions: Int64, roles: [String: Role], memberRoles: [String], owner: String = "owner") -> NormalizedStore {
@@ -98,6 +108,10 @@ final class StoreTests: XCTestCase {
         store.emojis[external] = Emoji(id: external, parent: .server(id: "other"), name: "external")
         let channel = Channel(id: "c", channelType: .textChannel, server: "s", name: "general")
         store.channels["c"] = channel
+
+        // Servers that don't know the permission yet let everyone use any emoji.
+        XCTAssertTrue(store.canUseEmoji(external, in: channel))
+        store.checksExternalEmojis = true
 
         XCTAssertTrue(store.canUseEmoji(local, in: channel))
         XCTAssertFalse(store.canUseEmoji(external, in: channel))

@@ -261,6 +261,13 @@ public struct MessageRowView: View {
             }
             .buttonStyle(.plain)
 
+            if message.masquerade == nil, message.webhook == nil, let serverId,
+               let iconRole = store.memberIconRole(userId: message.author, in: serverId),
+               let icon = iconRole.role.icon {
+                RoleIconView(icon: icon, roleName: iconRole.role.name, size: 16)
+                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 3 }
+            }
+
             if message.masquerade == nil, message.webhook == nil,
                let pronouns = serverId.flatMap({ store.member(userId: message.author, in: $0)?.pronouns }) ?? author?.pronouns,
                !pronouns.isEmpty {

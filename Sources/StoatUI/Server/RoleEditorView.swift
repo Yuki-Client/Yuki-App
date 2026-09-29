@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import StoatCore
 import StoatState
 
@@ -11,6 +12,9 @@ struct RoleEditorView: View {
     @State private var name = ""
     @State private var colour: String?
     @State private var hoist = false
+    @State private var iconItem: PhotosPickerItem?
+    @State private var iconData: Data?
+    @State private var removeIcon = false
     @State private var permissions = PermissionOverrideValue()
     @State private var hasLoaded = false
     @State private var isSaving = false
@@ -24,7 +28,7 @@ struct RoleEditorView: View {
 
     private var appearanceChanged: Bool {
         guard let role else { return false }
-        return name != role.name || colour != role.colour || hoist != role.hoist
+        return name != role.name || colour != role.colour || hoist != role.hoist || iconData != nil || removeIcon
     }
 
     private var permissionsChanged: Bool {
@@ -58,6 +62,13 @@ struct RoleEditorView: View {
             guard !hasLoaded, let role else { return }
             hasLoaded = true
             load(role)
+        }
+        .onChange(of: iconItem) { _, item in
+            guard let item else { return }
+            Task {
+                iconData = try? await item.loadTransferable(type: Data.self)
+                removeIcon = false
+            }
         }
         .alert("Delete \(role?.name ?? "role")?", isPresented: $showDeleteConfirm) {
             Button("Delete Role", role: .destructive) {
@@ -95,6 +106,40 @@ struct RoleEditorView: View {
 
             Section("Colour") {
                 RoleColourPicker(colour: $colour, previewName: name.isEmpty ? "Role" : name)
+            }
+            .disabled(!canEdit)
+
+            Section {
+                HStack(spacing: 12) {
+                    Group {
+                        if let iconData, let image = UIImage(data: iconData) {
+                            Image(uiImage: image).resizable().scaledToFit()
+                        } else if let icon = role.icon, !removeIcon {
+                            RoleIconView(icon: icon, roleName: role.name, size: 36)
+                        } else {
+                            Image(systemName: "photo")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(YukiTheme.cardSurface)
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    PhotosPicker(role.icon == nil && iconData == nil ? "Add Icon" : "Change Icon", selection: $iconItem, matching: .images)
+                    Spacer()
+                    if iconData != nil || (role.icon != nil && !removeIcon) {
+                        Button("Remove", role: .destructive) {
+                            iconData = nil
+                            iconItem = nil
+                            removeIcon = true
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            } header: {
+                Text("Icon")
+            } footer: {
+                Text("Shown next to the names of members with this role.")
             }
             .disabled(!canEdit)
 
@@ -139,6 +184,9 @@ struct RoleEditorView: View {
         name = role.name
         colour = role.colour
         hoist = role.hoist
+        iconItem = nil
+        iconData = nil
+        removeIcon = false
         permissions = PermissionOverrideValue(role.permissions)
     }
 
@@ -154,7 +202,9 @@ struct RoleEditorView: View {
                     serverId: serverId,
                     name: trimmed == role.name ? nil : trimmed,
                     colour: colour == role.colour ? nil : .some(colour),
-                    hoist: hoist == role.hoist ? nil : hoist
+                    hoist: hoist == role.hoist ? nil : hoist,
+                    iconData: iconData,
+                    removeIcon: removeIcon
                 )
             }
             if success, permissionsChanged {

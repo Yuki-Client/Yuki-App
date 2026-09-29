@@ -105,16 +105,34 @@ extension AppStore {
     }
 
     /// Updates a role's appearance. Pass `colour: .some(nil)` to clear the colour.
-    public func updateRole(roleId: String, serverId: String, name: String?, colour: String??, hoist: Bool?) async -> Bool {
+    public func updateRole(
+        roleId: String,
+        serverId: String,
+        name: String?,
+        colour: String??,
+        hoist: Bool?,
+        iconData: Data? = nil,
+        removeIcon: Bool = false
+    ) async -> Bool {
         var payload = DeltaAPIClient.EditRolePayload(name: name, hoist: hoist)
+        var remove: [String] = []
         if let colour {
             if let colour, !colour.isEmpty {
                 payload.colour = colour
             } else {
-                payload.remove = ["Colour"]
+                remove.append("Colour")
             }
         }
+        if removeIcon, iconData == nil {
+            remove.append("Icon")
+        }
+        if !remove.isEmpty {
+            payload.remove = remove
+        }
         do {
+            if let iconData {
+                payload.icon = try await upload(iconData, filename: "icon.png", tag: .icons)
+            }
             let role = try await apiClient.editRole(serverId: serverId, roleId: roleId, payload)
             store.servers[serverId]?.roles[roleId] = role
             return true

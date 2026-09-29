@@ -56,27 +56,30 @@ struct InviteShareSheet: View {
             .frame(maxWidth: .infinity)
             .background(RoundedRectangle(cornerRadius: 10).fill(YukiTheme.cardSurface))
 
-            VStack(spacing: 0) {
-                settingRow("Expire After") {
-                    Picker("Expire After", selection: $expiresAfter) {
-                        ForEach(availableExpiryOptions, id: \.seconds) { option in
-                            Text(option.label).tag(TimeInterval?.some(option.seconds))
-                        }
-                        Text("Never").tag(TimeInterval?.none)
-                    }
-                }
-                Divider().padding(.leading, 12)
-                settingRow("Max Uses") {
-                    Picker("Max Uses", selection: $maxUses) {
-                        Text("No Limit").tag(Int?.none)
-                        ForEach(Self.useOptions, id: \.self) { uses in
-                            Text(uses == 1 ? "1 use" : "\(uses) uses").tag(Int?.some(uses))
+            // Servers without invite limits ignore these, so they aren't offered there.
+            if store.supportsInviteLimits {
+                VStack(spacing: 0) {
+                    settingRow("Expire After") {
+                        Picker("Expire After", selection: $expiresAfter) {
+                            ForEach(availableExpiryOptions, id: \.seconds) { option in
+                                Text(option.label).tag(TimeInterval?.some(option.seconds))
+                            }
+                            Text("Never").tag(TimeInterval?.none)
                         }
                     }
+                    Divider().padding(.leading, 12)
+                    settingRow("Max Uses") {
+                        Picker("Max Uses", selection: $maxUses) {
+                            Text("No Limit").tag(Int?.none)
+                            ForEach(Self.useOptions, id: \.self) { uses in
+                                Text(uses == 1 ? "1 use" : "\(uses) uses").tag(Int?.some(uses))
+                            }
+                        }
+                    }
                 }
+                .background(RoundedRectangle(cornerRadius: 10).fill(YukiTheme.cardSurface))
+                .disabled(isCreating)
             }
-            .background(RoundedRectangle(cornerRadius: 10).fill(YukiTheme.cardSurface))
-            .disabled(isCreating)
 
             HStack(spacing: 12) {
                 Button {
@@ -104,6 +107,7 @@ struct InviteShareSheet: View {
             Spacer()
         }
         .padding(.horizontal, 20)
+        .presentationDetents([.height(store.supportsInviteLimits ? 360 : 260)])
         .task(id: "\(expiresAfter ?? 0)-\(maxUses ?? 0)") {
             await regenerate()
         }

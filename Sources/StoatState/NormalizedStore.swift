@@ -24,6 +24,9 @@ public final class NormalizedStore {
     public var serverFolders: [ServerFolder] = []
     public var notificationOptions = NotificationOptions()
     public var currentUserId: String?
+    /// Servers older than the Use External Emojis permission don't grant it to anyone, so it's
+    /// only checked once the server says it knows about it.
+    public var checksExternalEmojis = false
 
     @ObservationIgnored
     public private(set) var timelines: [String: ChannelTimeline] = [:]
@@ -205,7 +208,7 @@ public final class NormalizedStore {
 
     /// Stoat only blocks other servers' emoji in server channels, and only without Use External Emojis.
     public func canUseExternalEmojis(in channel: Channel?) -> Bool {
-        guard let channel, channel.server != nil else { return true }
+        guard checksExternalEmojis, let channel, channel.server != nil else { return true }
         return hasPermission(.useExternalEmojis, in: channel)
     }
 
@@ -267,6 +270,11 @@ public final class NormalizedStore {
 
     public func memberRoleColor(userId: String, in serverId: String) -> String? {
         orderedRoles(userId: userId, in: serverId).last(where: { $0.role.colour?.isEmpty == false })?.role.colour
+    }
+
+    /// The highest role with an icon, which is shown next to the member's name.
+    public func memberIconRole(userId: String, in serverId: String) -> (id: String, role: Role)? {
+        orderedRoles(userId: userId, in: serverId).last(where: { $0.role.icon != nil })
     }
 
     public func memberHoistedRole(userId: String, in serverId: String) -> (id: String, role: Role)? {

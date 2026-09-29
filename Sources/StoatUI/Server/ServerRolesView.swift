@@ -49,7 +49,7 @@ struct ServerRolesView: View {
                         RoleEditorView(store: store, serverId: serverId, roleId: entry.id)
                     } label: {
                         HStack(spacing: 12) {
-                            RoleColourDot(colour: entry.role.colour, size: 16)
+                            RoleMarker(role: entry.role, size: 16)
                                 .frame(width: 22)
                             Text(entry.role.name)
                                 .foregroundStyle(AnyShapeStyle.stoatPaint(entry.role.colour) ?? AnyShapeStyle(.primary))

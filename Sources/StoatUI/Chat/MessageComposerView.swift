@@ -22,6 +22,7 @@ public struct MessageComposerView: View {
     @State private var now = Date()
     @State private var voiceRecorder = VoiceRecorder()
     @State private var isRecording = false
+    @State private var lastSent: (text: String, at: Date)?
     @FocusState private var isFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -163,6 +164,10 @@ public struct MessageComposerView: View {
             .presentationDetents([.medium, .large])
         }
         .onChange(of: text) { oldValue, newValue in
+            if isLeftoverFromSend(old: oldValue, new: newValue) {
+                text = ""
+                return
+            }
             guard !isEditing else { return }
             if newValue.count > oldValue.count {
                 store.noteTyping(in: channel.id)
@@ -275,7 +280,8 @@ public struct MessageComposerView: View {
         YukiHaptics.impact(.medium)
         if let editing = store.editingMessage {
             let content = text
-            clearText(sent: content)
+            // The draft comes back once the edit is saved, so there's no leftover to watch for.
+            text = ""
             Task { await store.editMessage(messageId: editing.id, content: content, in: channel.id) }
         } else {
             store.sendMessage(content: text, in: channel.id, attachments: attachments)
@@ -284,19 +290,18 @@ public struct MessageComposerView: View {
         }
     }
 
-    // Keyboards (autocorrect, dictation, marked IME text) can commit lingering text
-    // just after the field is cleared. Clear it if it was only part of the sent message.
     private func clearText(sent: String) {
         text = ""
-        guard !sent.isEmpty else { return }
-        Task { @MainActor in
-            for delay in [0, 150] {
-                try? await Task.sleep(for: .milliseconds(delay))
-                if !text.isEmpty, sent.hasSuffix(text) {
-                    text = ""
-                }
-            }
-        }
+        lastSent = sent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : (sent, Date())
+    }
+
+    /// Keyboards (autocorrect, predictive text, dictation, marked IME text) can put back part of
+    /// a message after the field is cleared, sometimes with a space added and not straight away.
+    /// They put it back in one go, where typing adds a character at a time.
+    private func isLeftoverFromSend(old: String, new: String) -> Bool {
+        guard let lastSent, Date().timeIntervalSince(lastSent.at) < 1.5 else { return false }
+        let leftover = new.trimmingCharacters(in: .whitespacesAndNewlines)
+        return new.count - old.count > 1 && !leftover.isEmpty && lastSent.text.contains(leftover)
     }
 
     private var attachmentTray: some View {

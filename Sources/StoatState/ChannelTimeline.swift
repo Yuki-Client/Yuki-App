@@ -197,6 +197,21 @@ public final class ChannelTimeline {
         }
     }
 
+    /// Stoat returns every message in the span a page covers, so any of `known` (what was loaded
+    /// before the page was fetched) in that span that the page leaves out has since been deleted.
+    /// A nil bound leaves that end open. Messages that arrived while fetching aren't in `known`,
+    /// so they stay.
+    public func merge(_ page: [Message], known: Set<String>, from start: String?, through end: String?) {
+        let fetched = Set(page.map(\.id))
+        let deleted = known.filter { id in
+            !fetched.contains(id) && (start.map { id >= $0 } ?? true) && (end.map { id <= $0 } ?? true)
+        }
+        if !deleted.isEmpty {
+            remove(ids: deleted)
+        }
+        merge(page)
+    }
+
     /// Replaces the loaded window, used when a fresh latest page doesn't overlap the cache.
     public func replace(with page: [Message]) {
         messages = page.sorted { $0.id < $1.id }

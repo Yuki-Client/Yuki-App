@@ -240,7 +240,6 @@ public struct ChannelDetailsSheet: View {
             }
             .sheet(item: Binding(get: { inviteChannelId.map(IdentifiedString.init) }, set: { inviteChannelId = $0?.value })) { item in
                 InviteShareSheet(store: store, channelId: item.value)
-                    .presentationDetents([.height(360)])
             }
         }
     }

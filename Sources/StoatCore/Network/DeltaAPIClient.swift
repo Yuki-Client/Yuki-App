@@ -727,12 +727,15 @@ public actor DeltaAPIClient {
         public var name: String?
         public var colour: String?
         public var hoist: Bool?
+        /// Autumn ID of an image uploaded with the `icons` tag.
+        public var icon: String?
         public var remove: [String]?
 
-        public init(name: String? = nil, colour: String? = nil, hoist: Bool? = nil, remove: [String]? = nil) {
+        public init(name: String? = nil, colour: String? = nil, hoist: Bool? = nil, icon: String? = nil, remove: [String]? = nil) {
             self.name = name
             self.colour = colour
             self.hoist = hoist
+            self.icon = icon
             self.remove = remove
         }
     }

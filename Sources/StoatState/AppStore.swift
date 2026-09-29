@@ -43,7 +43,9 @@ public final class AppStore {
     public private(set) var isConnecting = false
     public private(set) var errorMessage: String?
     public private(set) var connectionState: GatewayClient.ConnectionState = .disconnected
-    public private(set) var instanceConfiguration: InstanceConfiguration?
+    public private(set) var instanceConfiguration: InstanceConfiguration? {
+        didSet { store.checksExternalEmojis = instanceConfiguration?.checksExternalEmojis == true }
+    }
     public var toast: Toast?
     public var incomingNotification: IncomingNotification?
     public internal(set) var incomingCall: IncomingCall?
@@ -136,6 +138,7 @@ public final class AppStore {
         if let data = UserDefaults.standard.data(forKey: Keys.instanceConfiguration),
            let configuration = try? JSONDecoder().decode(InstanceConfiguration.self, from: data) {
             instanceConfiguration = configuration
+            store.checksExternalEmojis = configuration.checksExternalEmojis
             StoatInstance.apply(configuration: configuration, apiURL: apiURL)
         }
 

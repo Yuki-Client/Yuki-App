@@ -46,7 +46,7 @@ struct ModerationSheet: View {
                                 }
                             )) {
                                 HStack(spacing: 8) {
-                                    RoleColourDot(colour: entry.role.colour, size: 12)
+                                    RoleMarker(role: entry.role, size: 12)
                                     Text(entry.role.name)
                                 }
                             }

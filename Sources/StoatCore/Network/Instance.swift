@@ -14,6 +14,16 @@ public struct InstanceConfiguration: Codable, Sendable {
     }
 }
 
+extension InstanceConfiguration {
+    /// Invite expiry and use limits came in the same server release as the Use External Emojis
+    /// permission. Only servers running it report a maximum invite duration.
+    public var supportsInviteLimits: Bool {
+        features.limits?.global?.maxInviteDurationDays != nil
+    }
+
+    public var checksExternalEmojis: Bool { supportsInviteLimits }
+}
+
 public struct InstanceFeatures: Codable, Sendable {
     public let captcha: CaptchaFeature?
     public let email: Bool?

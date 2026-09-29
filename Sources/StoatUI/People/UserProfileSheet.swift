@@ -297,7 +297,7 @@ public struct UserProfileSheet: View {
                     FlowLayout(spacing: 6) {
                         ForEach(roles, id: \.id) { entry in
                             HStack(spacing: 5) {
-                                RoleColourDot(colour: entry.role.colour, size: 10)
+                                RoleMarker(role: entry.role, size: 12)
                                 Text(entry.role.name)
                                     .font(.caption.weight(.medium))
                             }

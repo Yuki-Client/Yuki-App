@@ -31,6 +31,7 @@ extension AppStore {
         timeline.loadError = nil
         defer { timeline.isLoadingLatest = false }
 
+        let known = Set(timeline.messages.map(\.id))
         do {
             let page = try await apiClient.fetchMessages(channelId: channelId, limit: Self.pageSize)
             ingest(page: page)
@@ -43,7 +44,9 @@ extension AppStore {
                 timeline.replace(with: page.messages)
                 timeline.hasMoreBefore = true
             } else {
-                timeline.merge(page.messages)
+                // A short page is the whole channel, so nothing older is left either.
+                let isFull = page.messages.count == Self.pageSize
+                timeline.merge(page.messages, known: known, from: isFull ? oldestFetchedId : nil, through: nil)
             }
             timeline.isViewingHistory = false
             timeline.historyEndId = nil
@@ -94,10 +97,12 @@ extension AppStore {
         guard timeline.isViewingHistory, !timeline.isLoadingAfter, let after = timeline.historyEndId else { return }
         timeline.isLoadingAfter = true
         defer { timeline.isLoadingAfter = false }
+        let known = Set(timeline.messages.map(\.id))
         do {
             let page = try await apiClient.fetchMessages(channelId: channelId, limit: Self.pageSize, after: after, sort: .oldest)
             ingest(page: page)
-            timeline.merge(page.messages)
+            let isFull = page.messages.count == Self.pageSize
+            timeline.merge(page.messages, known: known.filter { $0 > after }, from: nil, through: isFull ? page.messages.map(\.id).max() : nil)
             let newest = page.messages.map(\.id).max() ?? after
             // A full page that ends at the newest message is also the present.
             if page.messages.count < Self.pageSize || newest >= (store.channels[channelId]?.lastMessageId ?? "") {

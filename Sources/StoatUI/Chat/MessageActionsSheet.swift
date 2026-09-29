@@ -19,7 +19,8 @@ struct MessageActionsSheet: View {
         ReactionHistory().quickReactions { emoji in
             guard Emoji.isCustomEmojiId(emoji) else { return true }
             guard let parent = appStore.store.emojis[emoji]?.parent.serverId else { return false }
-            return serverId == nil || parent == serverId || permissions.contains(.useExternalEmojis)
+            return serverId == nil || parent == serverId || !appStore.store.checksExternalEmojis
+                || permissions.contains(.useExternalEmojis)
         }
     }
 

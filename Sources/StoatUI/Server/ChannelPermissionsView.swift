@@ -45,7 +45,7 @@ struct ChannelPermissionsView: View {
                         ChannelOverrideEditorView(store: store, channelId: channelId, roleId: entry.id)
                     } label: {
                         HStack(spacing: 12) {
-                            RoleColourDot(colour: entry.role.colour)
+                            RoleMarker(role: entry.role)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(entry.role.name)
                                 Text(summary(PermissionOverrideValue(channel?.rolePermissions[entry.id]), empty: ""))

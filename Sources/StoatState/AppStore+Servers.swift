@@ -292,6 +292,10 @@ extension AppStore {
         }
     }
 
+    public var supportsInviteLimits: Bool {
+        instanceConfiguration?.supportsInviteLimits == true
+    }
+
     /// How long an invite can last on this instance, if it sets a limit.
     public var maxInviteDuration: TimeInterval? {
         instanceConfiguration?.features.limits?.global?.maxInviteDurationDays.map { TimeInterval($0) * 86_400 }

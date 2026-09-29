@@ -138,7 +138,7 @@ struct ComposerSuggestionList: View {
             Text(name).font(.subheadline.weight(.medium))
             Text(user.username).font(.caption).foregroundStyle(.secondary)
         case .role(_, let role):
-            RoleColourDot(colour: role.colour)
+            RoleMarker(role: role, size: 18)
                 .frame(width: 24)
             Text("@\(role.name)")
                 .font(.subheadline.weight(.medium))

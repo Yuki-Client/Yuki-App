@@ -22,6 +22,9 @@ struct MemberRow: View {
                         .font(.body.weight(.medium))
                         .foregroundStyle(paint ?? AnyShapeStyle(.primary))
                         .lineLimit(1)
+                    if let serverId, let iconRole = appStore.store.memberIconRole(userId: userId, in: serverId), let icon = iconRole.role.icon {
+                        RoleIconView(icon: icon, roleName: iconRole.role.name, size: 16)
+                    }
                     if isOwner {
                         Image(systemName: "crown.fill")
                             .font(.caption2)
