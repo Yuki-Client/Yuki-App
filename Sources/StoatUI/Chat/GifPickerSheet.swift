@@ -37,7 +37,7 @@ struct GifPickerSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    if activeQuery != nil {
+                    if activeQuery != nil, !categories.isEmpty {
                         Button {
                             searchText = ""
                             activeQuery = nil
@@ -53,12 +53,15 @@ struct GifPickerSheet: View {
             .task {
                 if categories.isEmpty {
                     categories = await store.gifCategories()
+                    if categories.isEmpty, activeQuery == nil, !Task.isCancelled {
+                        activeQuery = ""
+                    }
                 }
             }
             .task(id: searchText) {
                 let trimmed = searchText.trimmingCharacters(in: .whitespaces)
                 guard !trimmed.isEmpty else {
-                    if activeQuery != "" { activeQuery = nil }
+                    if activeQuery != "" { activeQuery = categories.isEmpty ? "" : nil }
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(450))

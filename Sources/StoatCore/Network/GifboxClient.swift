@@ -101,10 +101,8 @@ public actor GifboxClient {
         return try await get("search", query: query, token: token)
     }
 
-    public static var locale: String {
-        let identifier = Locale.current.identifier.replacingOccurrences(of: "-", with: "_")
-        return identifier.isEmpty ? "en_US" : identifier
-    }
+    /// Same as web. Other locales can make Stoat's Gifbox service fail with a 502.
+    public static let locale = "en_US"
 
     private func get<T: Decodable>(_ path: String, query: [URLQueryItem], token: String?) async throws -> T {
         var components = URLComponents(url: Self.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!

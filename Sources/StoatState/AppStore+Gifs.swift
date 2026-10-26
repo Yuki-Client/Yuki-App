@@ -2,16 +2,10 @@ import Foundation
 import StoatCore
 
 extension AppStore {
+    /// Empty if they couldn't be loaded; the picker shows trending GIFs instead of an error.
     public func gifCategories() async -> [GifboxClient.Category] {
         let token = await apiClient.sessionToken
-        do {
-            return try await GifboxClient.shared.categories(token: token)
-        } catch is CancellationError {
-            return []
-        } catch {
-            showError(error)
-            return []
-        }
+        return (try? await GifboxClient.shared.categories(token: token)) ?? []
     }
 
     /// Trending GIFs when `query` is empty, otherwise search results. Pass `position` to load the next page.
