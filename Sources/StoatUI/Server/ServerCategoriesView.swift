@@ -11,6 +11,9 @@ struct ServerCategoriesView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var categories: [ServerCategory] = []
+    /// Web's hidden "default" category, kept so saving doesn't lose it.
+    @State private var defaultCategory: ServerCategory?
+    @State private var original: [ServerCategory] = []
     @State private var hasLoaded = false
     @State private var isSaving = false
     @State private var editMode: EditMode = .inactive
@@ -23,12 +26,34 @@ struct ServerCategoriesView: View {
     private var server: Server? { store.store.servers[serverId] }
 
     private var hasChanges: Bool {
-        hasLoaded && categories != (server?.categories ?? [])
+        hasLoaded && payload != original
+    }
+
+    /// Includes channels you can't see so they keep their place.
+    private var uncategorizedIds: [String] {
+        let filed = Set(categories.flatMap(\.channels))
+        let channels = server?.channels ?? []
+        let saved = (defaultCategory?.channels ?? []).filter(channels.contains)
+        return (saved + channels.filter { !saved.contains($0) }).filter { !filed.contains($0) }
     }
 
     private var uncategorized: [String] {
-        let filed = Set(categories.flatMap(\.channels))
-        return (server?.channels ?? []).filter { !filed.contains($0) && store.store.channels[$0] != nil }
+        uncategorizedIds.filter { store.store.channels[$0] != nil }
+    }
+
+    private var payload: [ServerCategory] {
+        guard let defaultCategory else { return categories }
+        var updated = defaultCategory
+        updated.channels = uncategorizedIds
+        return [updated] + categories
+    }
+
+    private func load() {
+        // Stoat can hold a channel in two categories, which the list can't show twice.
+        let sanitized = AppStore.sanitizedCategories(server?.categories ?? [], serverChannels: server?.channels ?? [])
+        defaultCategory = sanitized.first { $0.id == ServerCategory.defaultId }
+        categories = sanitized.filter { $0.id != ServerCategory.defaultId }
+        original = payload
     }
 
     var body: some View {
@@ -101,8 +126,7 @@ struct ServerCategoriesView: View {
         }
         .onAppear {
             guard !hasLoaded else { return }
-            // Stoat can hold a channel in two categories, which the list can't show twice.
-            categories = AppStore.sanitizedCategories(server?.categories ?? [], serverChannels: server?.channels ?? [])
+            load()
             hasLoaded = true
         }
         .alert("New Category", isPresented: $showNewCategory) {
@@ -225,9 +249,9 @@ struct ServerCategoriesView: View {
     private func save() {
         isSaving = true
         Task {
-            if await store.updateCategories(serverId: serverId, categories: categories) {
+            if await store.updateCategories(serverId: serverId, categories: payload) {
                 store.showSuccess("Categories saved.")
-                categories = server?.categories ?? []
+                load()
                 dismiss()
             }
             isSaving = false

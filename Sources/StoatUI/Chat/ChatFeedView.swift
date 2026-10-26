@@ -38,6 +38,7 @@ public struct ChatFeedView: View {
     @State private var isJumping = false
     /// Read marker captured when the channel opened, used for the "New" divider.
     @State private var unreadMarkerId: String?
+    @State private var hasCaughtUp = false
     @State private var nsfwConfirmed = false
 
     public init(store: AppStore, channelId: String) {
@@ -273,6 +274,20 @@ public struct ChatFeedView: View {
                     }
 
                 }
+                .overlay(alignment: .top) {
+                    ZStack {
+                        if let missed = missedMessages {
+                            CatchUpBar(count: missed.count, hasMore: missed.hasMore, since: missed.since) {
+                                hasCaughtUp = true
+                                Task { await catchUp(proxy: proxy) }
+                            } onDismiss: {
+                                hasCaughtUp = true
+                            }
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.easeOut(duration: 0.2), value: missedMessages == nil)
+                }
                 .overlay(alignment: .bottomTrailing) {
                     // Animated on its own so showing or hiding it never animates the message list.
                     ZStack {
@@ -367,6 +382,7 @@ public struct ChatFeedView: View {
             DateSeparatorRow(date: date)
         case .unreadDivider:
             UnreadDividerRow()
+                .modifier(UnreadDividerSeen { hasCaughtUp = true })
         case .message(let message, let isContinuation):
             MessageRowView(
                 message: message,
@@ -462,11 +478,55 @@ public struct ChatFeedView: View {
     }
 
     private func captureUnreadMarker() {
+        hasCaughtUp = false
         guard let channel, store.store.isUnread(channel: channel) else {
             unreadMarkerId = nil
             return
         }
         unreadMarkerId = store.store.unreads[channelId]?.lastId ?? "0"
+    }
+
+    private struct MissedMessages: Equatable {
+        let count: Int
+        let hasMore: Bool
+        let since: Date?
+    }
+
+    private var missedMessages: MissedMessages? {
+        // "0" means never read.
+        guard !hasCaughtUp, let marker = unreadMarkerId, marker != "0", !timeline.messages.isEmpty else { return nil }
+        let currentUserId = store.store.currentUserId
+        let count = timeline.messages.filter {
+            $0.id > marker && $0.author != currentUserId && store.store.users[$0.author]?.relationship != .blocked
+        }.count
+        guard count > 0 else { return nil }
+        let hasMore = !timeline.messages.contains { $0.id <= marker }
+        return MissedMessages(count: count, hasMore: hasMore, since: Message.date(fromULID: marker))
+    }
+
+    private func catchUp(proxy: ScrollViewProxy) async {
+        guard let marker = unreadMarkerId else { return }
+        isJumping = true
+        defer {
+            Task {
+                try? await Task.sleep(for: .milliseconds(800))
+                isJumping = false
+                if isAtBottom && timeline.isViewingHistory {
+                    loadNewerKeepingPosition()
+                }
+            }
+        }
+        guard await store.loadUnreadContext(channelId: channelId, after: marker) else { return }
+        // Same as jump(to:), otherwise the binding pulls the list back.
+        scrollAnchorId = nil
+        try? await Task.sleep(for: .milliseconds(100))
+        // The list is flipped, so this puts the divider near the top.
+        let anchor = UnitPoint(x: 0.5, y: 0.85)
+        proxy.scrollTo(FeedItem.unreadDivider.id, anchor: anchor)
+        for delay in [80, 150, 250, 350] {
+            try? await Task.sleep(for: .milliseconds(delay))
+            proxy.scrollTo(FeedItem.unreadDivider.id, anchor: anchor)
+        }
     }
 
     private func loadOlderPreservingPosition() async {

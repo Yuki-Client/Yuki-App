@@ -17,6 +17,8 @@ public struct ChannelListView: View {
     @State private var closeTarget: Channel?
     @Environment(VoiceCallController.self) private var voice
     @State private var serverChangedAt = Date.distantPast
+    /// `distantFuture` while scrolling. iOS 18+ only.
+    @State private var scrollSettledAt = Date.distantPast
     @State private var showQuickSwitcher = false
     @State private var conversationQuery = ""
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -55,6 +57,7 @@ public struct ChannelListView: View {
                 // A fresh scroll view per server: otherwise, after scrolling far down a long channel
                 // list, a shorter one stays scrolled past its end and looks empty.
                 .id(store.selectedServerId ?? AppStore.homeKey)
+                .modifier(ScrollSettleTracking(settledAt: $scrollSettledAt))
                 .scrollDismissesKeyboard(.immediately)
                 .transition(.opacity.combined(with: .offset(y: 10)))
                 .animation(YukiMotion.transition(reduceMotion: reduceMotion, enabled: animationsEnabled), value: store.selectedServerId)
@@ -281,28 +284,34 @@ public struct ChannelListView: View {
 
         ForEach(categorized, id: \.category.id) { section in
             let isCollapsed = collapsedCategories.contains(section.category.id)
-            Button {
-                YukiHaptics.selection()
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    toggleCategory(section.category.id)
+            HStack(spacing: 0) {
+                // Just the name is tappable, the rest of the row is where you scroll from.
+                Button {
+                    guard acceptsCategoryTaps else { return }
+                    YukiHaptics.selection()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        toggleCategory(section.category.id)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .rotationEffect(.degrees(isCollapsed ? -90 : 0))
+                        Text(section.category.title.uppercased())
+                            .font(.system(size: 11, weight: .bold))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 14)
+                    .padding(.trailing, 10)
+                    .frame(minHeight: 24)
+                    .contentShape(Rectangle())
                 }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .rotationEffect(.degrees(isCollapsed ? -90 : 0))
-                    Text(section.category.title.uppercased())
-                        .font(.system(size: 11, weight: .bold))
-                        .lineLimit(1)
-                    Spacer()
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 14)
-                .padding(.top, 14)
-                .padding(.bottom, 4)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
+            .padding(.top, 9)
+            .contentShape(Rectangle())
             .contextMenu {
                 if let server = store.store.servers[serverId], store.store.hasPermission(.manageChannel, in: server) {
                     Button {
@@ -349,6 +358,11 @@ public struct ChannelListView: View {
     /// so a stray tap doesn't open the wrong channel.
     private var acceptsTaps: Bool {
         Date.now.timeIntervalSince(serverChangedAt) > 0.5 && YukiSwipeGuard.acceptsTaps
+    }
+
+    /// Stops categories toggling when a scroll starts or ends on one.
+    private var acceptsCategoryTaps: Bool {
+        acceptsTaps && Date.now.timeIntervalSince(scrollSettledAt) > 0.3
     }
 
     /// The row to highlight: the open channel, or else the one swiping right to left would open,
@@ -576,5 +590,20 @@ public struct ChannelListView: View {
         .accessibilityLabel(title)
         .accessibilityValue([mentions > 0 ? "\(mentions) mentions" : nil, isUnread ? "unread" : nil].compactMap { $0 }.joined(separator: ", "))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// iOS 17 has no scroll phase callback, so this does nothing there.
+private struct ScrollSettleTracking: ViewModifier {
+    @Binding var settledAt: Date
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onScrollPhaseChange { _, phase in
+                settledAt = phase == .idle ? Date() : .distantFuture
+            }
+        } else {
+            content
+        }
     }
 }

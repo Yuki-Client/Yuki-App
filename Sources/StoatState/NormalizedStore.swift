@@ -85,6 +85,11 @@ public final class NormalizedStore {
     /// Applies a Ready payload. Ready is authoritative, so collections it covers are replaced.
     public func ingest(ready: ReadyPayload) {
         var nextUsers = users
+        // Ready includes everyone with a relationship, so anyone missing no longer has one.
+        let readyIds = Set(ready.users.map(\.id))
+        for (id, user) in nextUsers where !readyIds.isEmpty && user.relationship != .none && !readyIds.contains(id) {
+            nextUsers[id]?.relationship = .none
+        }
         for user in ready.users {
             nextUsers[user.id] = user
             if user.relationship == .user {
@@ -164,6 +169,7 @@ public final class NormalizedStore {
 
         let visibleById = Dictionary(visible.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var categorizedIds = Set<String>()
+        var defaultChannels: [Channel] = []
         var sections: [(category: ServerCategory, channels: [Channel])] = []
 
         for category in categories {
@@ -171,12 +177,15 @@ public final class NormalizedStore {
             let list = category.channels.compactMap { id in
                 categorizedIds.insert(id).inserted ? visibleById[id] : nil
             }
-            if !list.isEmpty {
+            if category.id == ServerCategory.defaultId {
+                defaultChannels.append(contentsOf: list)
+            } else {
+                // Empty categories still show, same as web.
                 sections.append((category: category, channels: list))
             }
         }
 
-        let uncategorized = visible.filter { !categorizedIds.contains($0.id) }
+        let uncategorized = defaultChannels + visible.filter { !categorizedIds.contains($0.id) }
         return (categorized: sections, uncategorized: uncategorized)
     }
 

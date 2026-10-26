@@ -23,7 +23,7 @@ public struct MessageComposerView: View {
     @State private var voiceRecorder = VoiceRecorder()
     @State private var isRecording = false
     @State private var lastSent: (text: String, at: Date)?
-    @FocusState private var isFocused: Bool
+    @State private var isFocused = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(store: AppStore, channel: Channel, text: Binding<String>) {
@@ -164,10 +164,6 @@ public struct MessageComposerView: View {
             .presentationDetents([.medium, .large])
         }
         .onChange(of: text) { oldValue, newValue in
-            if isLeftoverFromSend(old: oldValue, new: newValue) {
-                text = ""
-                return
-            }
             guard !isEditing else { return }
             if newValue.count > oldValue.count {
                 store.noteTyping(in: channel.id)
@@ -217,12 +213,8 @@ public struct MessageComposerView: View {
             }
 
             HStack(alignment: .bottom, spacing: 4) {
-                TextField(placeholder, text: $text, axis: .vertical)
-                    .lineLimit(1...8)
-                    .focused($isFocused)
-                    .padding(.vertical, 9)
+                ComposerTextView(text: $text, isFocused: $isFocused, placeholder: placeholder, isLeftover: isLeftoverFromSend)
                     .padding(.leading, 14)
-                    .submitLabel(.return)
 
                 if !isEditing {
                     Button {

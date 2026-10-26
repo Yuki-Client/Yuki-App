@@ -122,6 +122,18 @@ extension AppStore {
     public func loadMessageContext(channelId: String, messageId: String) async -> Bool {
         let timeline = store.timeline(for: channelId)
         if timeline.message(id: messageId) != nil { return true }
+        return await loadHistory(channelId: channelId, around: messageId) && timeline.message(id: messageId) != nil
+    }
+
+    /// Works even if the last read message was deleted.
+    public func loadUnreadContext(channelId: String, after markerId: String) async -> Bool {
+        let timeline = store.timeline(for: channelId)
+        if timeline.messages.contains(where: { $0.id <= markerId }) { return true }
+        return await loadHistory(channelId: channelId, around: markerId)
+    }
+
+    private func loadHistory(channelId: String, around messageId: String) async -> Bool {
+        let timeline = store.timeline(for: channelId)
         do {
             let page = try await apiClient.fetchMessages(channelId: channelId, limit: Self.pageSize, nearby: messageId)
             ingest(page: page)
@@ -135,7 +147,7 @@ extension AppStore {
             let newerCount = page.messages.filter { $0.id > messageId }.count
             timeline.isViewingHistory = newestLoaded < latest && newerCount >= Self.pageSize / 2
             timeline.historyEndId = timeline.isViewingHistory ? newestLoaded : nil
-            return timeline.message(id: messageId) != nil
+            return true
         } catch is CancellationError {
             return false
         } catch {

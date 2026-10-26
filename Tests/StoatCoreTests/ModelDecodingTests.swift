@@ -457,4 +457,31 @@ final class ModelDecodingTests: XCTestCase {
         )
         XCTAssertEqual(UnicodeEmoji.splittingLoneRegionalIndicators("plain"), [.text("plain")])
     }
+
+    func testGifboxResultsWithOnlyWebMGetPosterAndMP4() throws {
+        let page = try decode(GifboxClient.Page.self, """
+        {
+            "results": [{
+                "id": "8mWKaTgYKX1sQf0iBFWkZ",
+                "url": "https://gifbox.me/view/8mWKaTgYKX1sQf0iBFWkZ-cat-vibing",
+                "media_formats": {
+                    "webm": { "url": "https://rpc.gifbox.me/media/post/8mWKaTgYKX1sQf0iBFWkZ/webm", "dimensions": [512, 640] },
+                    "tinywebm": { "url": "https://rpc.gifbox.me/media/post/8mWKaTgYKX1sQf0iBFWkZ/webm", "dimensions": [512, 640] }
+                }
+            }]
+        }
+        """)
+        let result = try XCTUnwrap(page.results.first)
+        XCTAssertEqual(result.posterURL?.absoluteString, "https://rpc.gifbox.me/media/post/8mWKaTgYKX1sQf0iBFWkZ/poster")
+        XCTAssertEqual(result.previewVideoURL?.absoluteString, "https://rpc.gifbox.me/media/post/8mWKaTgYKX1sQf0iBFWkZ/mp4")
+        XCTAssertNil(page.next)
+    }
+
+    func testTenorWebMStillRewritesToMP4() {
+        XCTAssertEqual(
+            GifboxClient.tenorURL("https://media.tenor.com/abcdefgAAAPs/cat.webm", formatCode: "AAAPo", fileExtension: "mp4")?.absoluteString,
+            "https://media.tenor.com/abcdefgAAAPo/cat.mp4"
+        )
+        XCTAssertNil(GifboxClient.gifboxURL("https://media.tenor.com/abcdefgAAAPs/cat.webm", variant: "mp4"))
+    }
 }

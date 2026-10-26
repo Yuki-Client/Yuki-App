@@ -16,7 +16,11 @@ public struct CreateChannelSheet: View {
     public init(store: AppStore, serverId: String, categoryId: String? = nil) {
         self.store = store
         self.serverId = serverId
-        _categoryId = State(initialValue: categoryId)
+        _categoryId = State(initialValue: categoryId == ServerCategory.defaultId ? nil : categoryId)
+    }
+
+    private var categories: [ServerCategory] {
+        (store.store.servers[serverId]?.categories ?? []).filter { $0.id != ServerCategory.defaultId }
     }
 
     public var body: some View {
@@ -38,7 +42,7 @@ public struct CreateChannelSheet: View {
                 Section("Topic") {
                     TextField("Optional", text: $description, axis: .vertical)
                 }
-                if let categories = store.store.servers[serverId]?.categories, !categories.isEmpty {
+                if !categories.isEmpty {
                     Section("Category") {
                         Picker("Category", selection: $categoryId) {
                             Text("No Category").tag(String?.none)
@@ -61,7 +65,9 @@ public struct CreateChannelSheet: View {
                         Task {
                             let trimmed = name.trimmingCharacters(in: .whitespaces)
                             let topic = description.trimmingCharacters(in: .whitespaces)
-                            if await store.createChannel(serverId: serverId, name: trimmed, type: type, description: topic.isEmpty ? nil : topic, categoryId: categoryId) != nil {
+                            if let channel = await store.createChannel(serverId: serverId, name: trimmed, type: type, description: topic.isEmpty ? nil : topic, categoryId: categoryId) {
+                                // Same as web, and keeps it visible if the category is collapsed.
+                                store.openChannel(channel.id)
                                 dismiss()
                             }
                             isCreating = false

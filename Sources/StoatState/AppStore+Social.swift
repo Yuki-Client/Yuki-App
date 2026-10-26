@@ -32,31 +32,40 @@ extension AppStore {
     }
 
     public func acceptFriend(userId: String) async {
-        await updateRelationship { try await self.apiClient.acceptFriendRequest(userId: userId) }
+        await updateRelationship(userId: userId) { try await self.apiClient.acceptFriendRequest(userId: userId) }
     }
 
     /// Removes a friend, or declines / cancels a pending request.
     public func removeFriend(userId: String) async {
-        await updateRelationship { try await self.apiClient.removeFriend(userId: userId) }
+        await updateRelationship(userId: userId) { try await self.apiClient.removeFriend(userId: userId) }
     }
 
     public func blockUser(userId: String) async {
-        await updateRelationship { try await self.apiClient.blockUser(userId: userId) }
+        await updateRelationship(userId: userId) { try await self.apiClient.blockUser(userId: userId) }
     }
 
     public func unblockUser(userId: String) async {
-        await updateRelationship { try await self.apiClient.unblockUser(userId: userId) }
+        await updateRelationship(userId: userId) { try await self.apiClient.unblockUser(userId: userId) }
     }
 
-    private func updateRelationship(_ operation: @escaping () async throws -> User) async {
+    private func updateRelationship(userId: String, _ operation: @escaping () async throws -> User) async {
         do {
-            let user = try await operation()
-            var merged = store.users[user.id] ?? user
-            merged.relationship = user.relationship
-            store.users[user.id] = merged
+            applyRelationship(of: try await operation())
         } catch {
-            showError(error)
+            // Probably already handled elsewhere, so refresh the user instead of keeping a stale request.
+            if let user = try? await apiClient.fetchUser(id: userId),
+               user.relationship != store.users[userId]?.relationship {
+                applyRelationship(of: user)
+            } else {
+                showError(error)
+            }
         }
+    }
+
+    private func applyRelationship(of user: User) {
+        var merged = store.users[user.id] ?? user
+        merged.relationship = user.relationship
+        store.users[user.id] = merged
     }
 
     public func openDirectMessage(with userId: String) async {

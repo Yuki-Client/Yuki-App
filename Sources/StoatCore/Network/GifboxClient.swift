@@ -42,6 +42,12 @@ public actor GifboxClient {
                     return url
                 }
             }
+            // Stoat only requests WebM, but every Gifbox post has a poster.
+            for key in ["tinywebm", "webm"] {
+                if let raw = mediaFormats[key]?.url, let url = GifboxClient.gifboxURL(raw, variant: "poster") {
+                    return url
+                }
+            }
             return nil
         }
 
@@ -52,9 +58,10 @@ public actor GifboxClient {
                     return url
                 }
             }
-            // Older Tenor-backed results only list WebM; Tenor serves MP4 under the same ID.
+            // Stoat only requests WebM, so swap in the MP4 version.
             for key in ["tinywebm", "webm"] {
-                if let raw = mediaFormats[key]?.url, let url = GifboxClient.tenorURL(raw, formatCode: "AAAPo", fileExtension: "mp4") {
+                guard let raw = mediaFormats[key]?.url else { continue }
+                if let url = GifboxClient.gifboxURL(raw, variant: "mp4") ?? GifboxClient.tenorURL(raw, formatCode: "AAAPo", fileExtension: "mp4") {
                     return url
                 }
             }
@@ -123,6 +130,18 @@ public actor GifboxClient {
         } catch let error as URLError {
             throw StoatAPIError.network(error.localizedDescription)
         }
+    }
+
+    /// Swaps the variant in a Gifbox media URL (`https://rpc.gifbox.me/media/post/{id}/{variant}`).
+    public nonisolated static func gifboxURL(_ raw: String, variant: String) -> URL? {
+        guard var components = URLComponents(string: raw),
+              let host = components.host?.lowercased(), host == "gifbox.me" || host.hasSuffix(".gifbox.me") else { return nil }
+        var parts = components.path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        guard parts.count == 4, parts[0] == "media", parts[1] == "post" else { return nil }
+        parts[3] = variant
+        components.path = "/" + parts.joined(separator: "/")
+        components.query = nil
+        return components.url
     }
 
     /// Rewrites a Tenor media URL (`https://media.tenor.com/{id}{code}/{name}.{ext}`) to another format.

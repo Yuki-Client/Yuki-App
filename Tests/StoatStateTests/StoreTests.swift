@@ -662,4 +662,35 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(result.categorized.map { $0.channels.map(\.id) }, [["a", "b"], ["c"]])
         XCTAssertTrue(result.uncategorized.isEmpty)
     }
+
+    func testEmptyCategoriesShowAndDefaultCategoryHasNoHeader() {
+        let store = NormalizedStore()
+        store.currentUserId = "me"
+        var server = Server(id: "s", owner: "me", name: "S", channels: ["a", "b", "c", "d"])
+        server.categories = [
+            ServerCategory(id: "one", title: "One", channels: ["c"]),
+            ServerCategory(id: ServerCategory.defaultId, title: "Default", channels: ["b", "a"]),
+            ServerCategory(id: "empty", title: "Empty", channels: [])
+        ]
+        store.servers["s"] = server
+        for id in ["a", "b", "c", "d"] {
+            store.channels[id] = Channel(id: id, channelType: .textChannel, server: "s", name: id)
+        }
+        let result = store.categorizedChannels(forServer: "s")
+        XCTAssertEqual(result.categorized.map(\.category.id), ["one", "empty"])
+        XCTAssertEqual(result.categorized.map { $0.channels.map(\.id) }, [["c"], []])
+        XCTAssertEqual(result.uncategorized.map(\.id), ["b", "a", "d"])
+    }
+
+    func testReadyClearsRelationshipsItNoLongerLists() {
+        let store = NormalizedStore()
+        store.users["gone"] = User(id: "gone", username: "gone", discriminator: "0001", relationship: .incoming)
+        store.users["friend"] = User(id: "friend", username: "friend", discriminator: "0002", relationship: .friend)
+        store.ingest(ready: ReadyPayload(users: [
+            User(id: "me", username: "me", discriminator: "0000", relationship: .user),
+            User(id: "friend", username: "friend", discriminator: "0002", relationship: .friend)
+        ]))
+        XCTAssertEqual(store.users["gone"]?.relationship, RelationshipStatus.none)
+        XCTAssertEqual(store.users["friend"]?.relationship, .friend)
+    }
 }

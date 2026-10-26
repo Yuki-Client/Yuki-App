@@ -96,6 +96,9 @@ public struct Server: Codable, Identifiable, Sendable, Hashable {
 }
 
 public struct ServerCategory: Codable, Identifiable, Sendable, Hashable {
+    /// Stoat for Web uses this to store the order of uncategorised channels. Not a real category.
+    public static let defaultId = "default"
+
     public let id: String
     public var title: String
     public var channels: [String]
