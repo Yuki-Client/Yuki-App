@@ -11,8 +11,8 @@ import os
 
 BUNDLE_ID = "chat.yuki.ios"
 DEPLOYMENT_TARGET = "17.0"
-MARKETING_VERSION = "1.2"
-BUILD_NUMBER = "3"
+MARKETING_VERSION = "1.3"
+BUILD_NUMBER = "4"
 
 
 def oid(name):
